@@ -33,6 +33,35 @@ def best_fit(vms, pms):
             best_pm.place_vm(vm)
     return pms
 
+def worst_fit(vms, pms):
+    """Places each VM on the PM that has the most remaining CPU capacity."""
+    for pm in pms:
+        pm.reset()
+    for vm in vms:
+        best_pm = None
+        max_remaining_cpu = -1
+        for pm in pms:
+            if pm.can_host(vm):
+                remaining_cpu = pm.cpu_cap - (pm.cpu_used + vm.cpu)
+                if remaining_cpu > max_remaining_cpu:
+                    max_remaining_cpu = remaining_cpu
+                    best_pm = pm
+        if best_pm:
+            best_pm.place_vm(vm)
+    return pms
+
+def first_fit_decreasing(vms, pms):
+    """Sorts VMs by CPU requirement in descending order, then applies First Fit."""
+    for pm in pms:
+        pm.reset()
+    # Sort VMs in descending order of CPU requirement
+    sorted_vms = sorted(vms, key=lambda vm: vm.cpu, reverse=True)
+    for vm in sorted_vms:
+        for pm in pms:
+            if pm.place_vm(vm):
+                break
+    return pms
+
 # --- Multi-Objective Ant Colony Optimization (MO-ACO) ---
 
 class ACO_VMP:
@@ -119,9 +148,10 @@ class ACO_VMP:
 
             # Update pheromones
             self.pheromone *= (1 - self.rho) # Evaporation
-            best_iter_solution, best_iter_fitness = min(all_ant_solutions, key=lambda x: x[1])
-            for vm_id, pm_id in best_iter_solution.items():
-                self.pheromone[vm_id, pm_id] += 1.0 / (best_iter_fitness + 1e-5) # Deposition
+            if all_ant_solutions:
+                best_iter_solution, best_iter_fitness = min(all_ant_solutions, key=lambda x: x[1])
+                for vm_id, pm_id in best_iter_solution.items():
+                    self.pheromone[vm_id, pm_id] += 1.0 / (best_iter_fitness + 1e-5) # Deposition
             
             print(f"Iteration {i+1}/{self.n_iterations}: Best Fitness = {best_fitness:.2f}")
 
